@@ -46,4 +46,40 @@ public class Client {
     protected boolean shouldSendTextFromConsole() {
         return true;
     }
+
+    public void run() {
+        SocketThread socketThread = getSocketThread();
+        // Помечаем поток как deamon
+        socketThread.setDaemon(true);
+        socketThread.start();
+
+        try {
+            synchronized (this) {
+                wait();
+            }
+        } catch (InterruptedException e) {
+            ConsoleHelper.writeMessage("Произошла ошибка во время работы клиента.");
+            return;
+        }
+
+        if (clientConnected)
+            ConsoleHelper.writeMessage("Соединение установленно. Для выхода наберите команду 'exit'.");
+        else
+            ConsoleHelper.writeMessage("Произошла ошибка во время работы клиента.");
+
+        // Пока не будет введена команда exit, считываем сообщения с консоли и отправляем их на сервер
+        while (clientConnected) {
+            String text = ConsoleHelper.readString();
+            if (text.equalsIgnoreCase("exit"))
+                break;
+
+            if (shouldSendTextFromConsole())
+                sendTextMessage(text);
+        }
+    }
+
+    public static void main(String[] args) {
+        Client client = new Client();
+        client.run();
+    }
 }

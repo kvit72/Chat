@@ -1,3 +1,5 @@
+package Chat;
+
 public enum MessageType {
     NAME_REQUEST,
     USER_NAME,

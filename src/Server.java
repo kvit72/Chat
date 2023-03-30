@@ -13,6 +13,7 @@ public class Server {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             ConsoleHelper.writeMessage("Чат сервер запущен.");
             while (true) {
+                // Ожидаем входящее соединение и запускаем отдельный поток при его принятии
                 Socket socket = serverSocket.accept();
                 new Handler(socket).start();
             }
@@ -30,7 +31,31 @@ public class Server {
 
         @Override
         public void run() {
+            ConsoleHelper.writeMessage("Установлено новое соединение с " + socket.getRemoteSocketAddress());
 
+            String userName = null;
+
+            try (Connection connection = new Connection(socket)) {
+                userName = serverHandshake(connection);
+
+                // Сообщаем всем участникам, что присоеденился новый участник
+                sendBroadcastMessage(new Message(MessageType.USER_ADDED, userName));
+
+                // Сообщаем новому участнику о существующих участниках
+                notifyUsers(connection, userName);
+
+                // Обрабатываем сообщения пользователей
+                serverMainLoop(connection, userName);
+            } catch (IOException | ClassNotFoundException e) {
+                ConsoleHelper.writeMessage("Ошибка при обмене с данными " + socket.getRemoteSocketAddress());
+            }
+
+            if (userName != null) {
+                connectionMap.remove(userName);
+                sendBroadcastMessage(new Message(MessageType.USER_REMOVED, userName));
+            }
+
+            ConsoleHelper.writeMessage("Соединение с " + socket.getRemoteSocketAddress() + " закрыто.");
         }
 
         private String serverHandshake(Connection connection) throws IOException, ClassNotFoundException {
@@ -84,6 +109,7 @@ public class Server {
     }
 
     public static void sendBroadcastMessage(Message message) {
+        // Рассылаем сообщение по всем соединениям
         for (Connection connection : connectionMap.values()) {
             try {
                 connection.send(message);
